@@ -1,20 +1,20 @@
 package com.dis.ms.productms.repository;
 
 import com.dis.ms.productms.entity.ProductDetails;
-import com.dis.ms.productms.entity.ProductImage;
-import org.springframework.dao.DataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
-import java.util.List;
+import java.util.Optional;
 
-public interface ProductDetailsRepository {
+public interface ProductDetailsRepository extends JpaRepository<ProductDetails, String> {
 
-    List<ProductImage> findAll(int offset);
+    Optional<ProductDetails> findById(String prdId);
 
-    ProductDetails findById(String prdId);
+    @Query("SELECT p FROM ProductDetails p WHERE p.deleted = false")
+    Page<ProductDetails> findAllActive(Pageable pageable);
 
-    int save(ProductDetails product) throws DataAccessException;
-
-    int update(ProductDetails product);
-
-    int deleteById(String prdId);
+    @Query("SELECT p FROM ProductDetails p WHERE p.prdId = :prdId AND p.deleted = false")
+    Optional<ProductDetails> findByIdAndNotDeleted(String prdId);
 }

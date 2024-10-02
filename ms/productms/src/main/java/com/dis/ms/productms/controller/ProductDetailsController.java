@@ -1,67 +1,49 @@
 package com.dis.ms.productms.controller;
 
 import com.dis.ms.productms.dto.ProductDetailsDTO;
-import com.dis.ms.productms.entity.ProductDetails;
-import com.dis.ms.productms.exception.ResourceNotFoundException;
 import com.dis.ms.productms.service.impl.ProductDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/product")
+@RequestMapping("/api/v1/product")
 @RequiredArgsConstructor
 @Slf4j
-public class ProductDetailsController {
+public class ProductDetailsController extends AbstractController<ProductDetailsDTO, String> {
 
     private final ProductDetailsServiceImpl productDetailsService;
 
-    @GetMapping("/all/{offset}")
-    public List<ProductDetailsDTO> getAllProducts(@PathVariable("offset") int offset){
+    @Override
+    protected List<ProductDetailsDTO> getAll(int offset, int limit) {
         log.info("Get All Product with offset: {}", offset);
-        return productDetailsService.getAllProducts(offset);
+        return productDetailsService.getAllProducts(offset, limit);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ProductDetailsDTO> getProductById(@PathVariable("id") String prdId){
-
-        log.info("Get: {}", prdId);
-        ProductDetailsDTO product = productDetailsService.getProductById(prdId);
-        log.info(product.toString());
-        return product !=null ? ResponseEntity.ok(product) : ResponseEntity.notFound().build();
+    @Override
+    protected ProductDetailsDTO getById(String prdId) {
+        log.info("Get Product by ID: {}", prdId);
+        return productDetailsService.getProductById(prdId);
     }
 
-    @PostMapping
-    public void createProduct(@RequestBody ProductDetailsDTO productDetailsDTO) {
-
-        log.info("Post: {}", productDetailsDTO.toString());
+    @Override
+    protected void create(ProductDetailsDTO productDetailsDTO) {
+        log.info("Creating Product: {}", productDetailsDTO.toString());
         productDetailsService.saveProduct(productDetailsDTO);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Void> updateProduct(@PathVariable("id") String prdId, @RequestBody ProductDetailsDTO productDetailsDTO) {
-
-        try{
-            log.info("Id: {}", prdId);
-            productDetailsDTO.setPrdId(prdId);
-            productDetailsService.updateProduct(productDetailsDTO);
-            log.info("Updated: {}", getProductById(prdId).toString());
-            return ResponseEntity.ok().build();
-        }catch (ResourceNotFoundException exception){
-            log.error("Not found: {}", prdId);
-            return ResponseEntity.notFound().build();
-        }
-
+    @Override
+    protected void update(String prdId, ProductDetailsDTO productDetailsDTO) {
+        productDetailsDTO.setPrdId(prdId);
+        productDetailsService.updateProduct(productDetailsDTO);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable("id") String prdId) {
-
-        log.info("Deleted: {}", prdId);
+    @Override
+    protected void delete(String prdId) {
+        log.info("Deleting Product: {}", prdId);
         productDetailsService.deleteProduct(prdId);
-        return ResponseEntity.noContent().build();
     }
 }

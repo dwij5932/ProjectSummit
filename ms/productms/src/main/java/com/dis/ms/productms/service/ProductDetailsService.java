@@ -7,13 +7,13 @@ import java.util.List;
 
 public interface ProductDetailsService {
 
-    public List<ProductDetailsDTO> getAllProducts(int offset);
+    List<ProductDetailsDTO> getAllProducts(int offset, int limit);
 
-    public ProductDetailsDTO getProductById(String prdId);
+    ProductDetailsDTO getProductById(String prdId);
 
-    public void saveProduct(ProductDetailsDTO productDetails);
+    void saveProduct(ProductDetailsDTO productDetails);
 
-    public void updateProduct(ProductDetailsDTO productDetailsDTO) throws ResourceAccessException;
+    void updateProduct(ProductDetailsDTO productDetailsDTO) throws ResourceAccessException;
 
-    public void deleteProduct(String prdId);
+    void deleteProduct(String prdId);
 }

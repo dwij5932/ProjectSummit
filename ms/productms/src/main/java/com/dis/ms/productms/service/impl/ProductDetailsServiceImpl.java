@@ -1,161 +1,111 @@
 package com.dis.ms.productms.service.impl;
 
+
 import com.dis.ms.productms.dto.ImageUrlsDTO;
 import com.dis.ms.productms.dto.ProductDetailsDTO;
 import com.dis.ms.productms.entity.ProductDetails;
-import com.dis.ms.productms.entity.ProductImage;
 import com.dis.ms.productms.exception.ResourceNotFoundException;
-import com.dis.ms.productms.repository.impl.ProductDetailsRepositoryImpl;
+import com.dis.ms.productms.mapper.ProductDetailsMapper;
+import com.dis.ms.productms.repository.ProductDetailsRepository;
 import com.dis.ms.productms.service.ProductDetailsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.ResourceAccessException;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ProductDetailsServiceImpl implements ProductDetailsService {
 
+    private final ProductDetailsRepository productDetailsRepository;
+    private final ProductDetailsMapper productDetailsMapper;
     private final ImageUrlsServiceImpl imageUrlsService;
-    private final ProductDetailsRepositoryImpl productDetailsRepository;
 
     @Override
-    public List<ProductDetailsDTO> getAllProducts(int offset) {
+    public List<ProductDetailsDTO> getAllProducts(int offset, int limit) {
 
-        try {
-            log.info("Get Products with offset: {}", offset);
-            List<ProductImage> productDetailsList = productDetailsRepository.findAll(offset);
+        log.info("Fetching products with offset: {}", offset);
+        PageRequest pageRequest = PageRequest.of(offset, limit);
+        List<ProductDetails> products = productDetailsRepository.findAllActive(pageRequest).getContent();
 
-            Map<String, ProductDetailsDTO> productDetailsDTOMap = new LinkedHashMap<>();
+        return products.stream().map(product -> {
+            List<ImageUrlsDTO> images = imageUrlsService.getAllImagesById(product.getPrdId());
 
-            for (ProductImage productDetails : productDetailsList) {
+            ProductDetailsDTO productDetailsDTO = productDetailsMapper.toProductDetailsDTO(product);
+            productDetailsDTO.setImageUrlsDTOList(images);
 
-                String prdId = productDetails.getPrdId();
-
-                productDetailsDTOMap.putIfAbsent(prdId, ProductDetailsDTO.builder()
-                        .prdId(productDetails.getPrdId())
-                        .name(productDetails.getName())
-                        .sellerId(productDetails.getSellerId())
-                        .price(productDetails.getPrice())
-                        .discount(productDetails.getDiscount())
-                        .description(productDetails.getDescription())
-                        .amount(productDetails.getAmount())
-                        .imageUrlsDTOList(new ArrayList<>())
-                        .build());
-
-                productDetailsDTOMap.get(prdId).getImageUrlsDTOList().add(ImageUrlsDTO.builder()
-                        .imageId(productDetails.getImageId())
-                        .imageUrl(productDetails.getImageUrl())
-                        .altText(productDetails.getAltText())
-                        .build());
-            }
-
-            return new ArrayList<>(productDetailsDTOMap.values());
-        }catch (DataAccessException e){
-            log.error(e.toString());
-        }
-
-        return new ArrayList<>();
+            return productDetailsDTO;
+        }).toList();
     }
 
     @Override
     public ProductDetailsDTO getProductById(String prdId) {
+        Optional<ProductDetails> optionalProduct = productDetailsRepository.findByIdAndNotDeleted(prdId);
 
-        try {
-            log.info("Get Product with prdId: {}", prdId);
-            ProductDetails productDetails = productDetailsRepository.findById(prdId);
-            List<ImageUrlsDTO> imageUrlsDTOList = imageUrlsService.getAllImagesById(prdId);
-
-            return ProductDetailsDTO.builder()
-                    .prdId(productDetails.getPrdId())
-                    .name(productDetails.getName())
-                    .sellerId(productDetails.getSellerId())
-                    .price(productDetails.getPrice())
-                    .discount(productDetails.getDiscount())
-                    .description(productDetails.getDescription())
-                    .amount(productDetails.getAmount())
-                    .imageUrlsDTOList(imageUrlsDTOList)
-                    .build();
-        }catch (DataAccessException e){
-            log.error(e.toString());
+        if (optionalProduct.isPresent()) {
+            ProductDetails product = optionalProduct.get();
+            List<ImageUrlsDTO> images = imageUrlsService.getAllImagesById(product.getPrdId());
+            ProductDetailsDTO productDetailsDTO = productDetailsMapper.toProductDetailsDTO(product);
+            productDetailsDTO.setImageUrlsDTOList(images);
+            return productDetailsDTO;
+        } else {
+            throw new ResourceNotFoundException("Product with id " + prdId + " not found or is deleted.");
         }
-
-        return null;
     }
 
     @Override
     public void saveProduct(ProductDetailsDTO productDetailsDTO) {
-
         try {
-            ProductDetails productDetails = ProductDetails.builder()
-                    .prdId("p" + UUID.randomUUID().toString().substring(0, 8))
-                    .name(productDetailsDTO.getName())
-                    .sellerId(productDetailsDTO.getSellerId())
-                    .price(productDetailsDTO.getPrice())
-                    .discount(productDetailsDTO.getDiscount())
-                    .description(productDetailsDTO.getDescription())
-                    .amount(productDetailsDTO.getAmount())
-                    .deleted(false)
-                    .build();
+            String prdId = "p" + UUID.randomUUID().toString().substring(0, 8);
+            ProductDetails productDetails = productDetailsMapper.toProductDetails(productDetailsDTO);
+            productDetails.setDeleted(false);
+            productDetails.setPrdId(prdId);
 
-            if (productDetailsRepository.save(productDetails) == 1) {
-                log.info("Save Product: {}", productDetails);
-            } else {
-                log.error("Invalided Access");
-            }
+            productDetailsRepository.save(productDetails);
+            log.info("Saved Product: {}", productDetails);
 
-            for (ImageUrlsDTO imageUrlsDTO : productDetailsDTO.getImageUrlsDTOList()) {
-                imageUrlsService.saveImage(imageUrlsDTO, productDetails.getPrdId());
-            }
+            productDetailsDTO.getImageUrlsDTOList().forEach(image -> imageUrlsService.saveImage(image, productDetails.getPrdId()));
+
         } catch (DataAccessException e) {
-            log.error(e.toString());
+            log.error("Error saving product: {}", e.getMessage());
         }
-
     }
 
     @Override
-    public void updateProduct(ProductDetailsDTO productDetailsDTO) throws ResourceAccessException {
+    public void updateProduct(ProductDetailsDTO productDetailsDTO) {
+        try {
+            productDetailsRepository.save(productDetailsMapper.toProductDetails(productDetailsDTO));
 
-        try{
-            if (productDetailsRepository.findById(productDetailsDTO.getPrdId()) != null) {
-                ProductDetails productDetails = ProductDetails.builder()
-                        .prdId("p" + UUID.randomUUID().toString().substring(0, 8))
-                        .name(productDetailsDTO.getName())
-                        .sellerId(productDetailsDTO.getSellerId())
-                        .price(productDetailsDTO.getPrice())
-                        .discount(productDetailsDTO.getDiscount())
-                        .description(productDetailsDTO.getDescription())
-                        .amount(productDetailsDTO.getAmount())
-                        .build();
-
-                if(productDetailsRepository.update(productDetails) == 1){
-                    log.info("Update Product: {}", productDetails);
-                }else{
-                    log.error("Product update failed with PrdId: {}", productDetails.getPrdId());
+            for (ImageUrlsDTO image : productDetailsDTO.getImageUrlsDTOList()) {
+                if(image.getImageId() == null) {
+                    imageUrlsService.saveImage(image, productDetailsDTO.getPrdId());
+                }else {
+                    imageUrlsService.updateImage(image, productDetailsDTO.getPrdId());
                 }
-
-                for (ImageUrlsDTO imageUrlsDTO: productDetailsDTO.getImageUrlsDTOList()){
-                    if(imageUrlsDTO.getImageId() != null){
-                        imageUrlsService.updateImage(imageUrlsDTO, productDetails.getPrdId());
-                    }else{
-                        imageUrlsService.saveImage(imageUrlsDTO, productDetails.getPrdId());
-                    }
-                }
-            } else {
-                throw new ResourceNotFoundException("Product " + productDetailsDTO + " not found.");
             }
-        }catch (DataAccessException e){
-            log.error(e.toString());
+        } catch (DataAccessException e) {
+            log.error("Error updating product: {}", e.getMessage());
         }
     }
 
     @Override
     public void deleteProduct(String prdId) {
+        Optional<ProductDetails> optionalProduct = productDetailsRepository.findById(prdId);
 
-        productDetailsRepository.deleteById(prdId);
+        if (optionalProduct.isPresent()) {
+            ProductDetails product = optionalProduct.get();
+            product.setDeleted(true);
+            productDetailsRepository.save(product);
+
+            imageUrlsService.deleteImages(prdId);
+        } else {
+            throw new ResourceNotFoundException("Product with id " + prdId + " not found.");
+        }
     }
 }

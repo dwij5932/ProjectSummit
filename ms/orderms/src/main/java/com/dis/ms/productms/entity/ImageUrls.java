@@ -24,7 +24,7 @@ public class ImageUrls {
     @Column(name = "imageurl", nullable = false)
     private String imageUrl;
 
-    @Column(name = "alttext", nullable = false)
+    @Column(name = "alttext")
     private String altText;
 
     private Boolean deleted;

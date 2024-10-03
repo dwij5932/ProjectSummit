@@ -39,6 +39,7 @@ public class ImageUrlsServiceImpl implements ImageUrlsService {
         ImageUrls image = imageUrlsMapper.toImageUrls(imageUrlsDTO);
         image.setPrdId(prdId);
         image.setImageId(imageId);
+        image.setDeleted(false);
         imageUrlRepository.save(image);
     }
 

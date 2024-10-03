@@ -20,17 +20,21 @@ public class ProductDetails {
     @Column(name = "prdid", nullable = false)
     private String prdId;
 
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "sellerid", nullable = false)
     private String sellerId;
 
+    @Column(name = "price", nullable = false)
     private double price;
 
+    @Column(name = "discount")
     private Double discount;
 
     private String description;
 
+    @Column(name = "amount", nullable = false)
     private int amount;
 
     private Boolean deleted;

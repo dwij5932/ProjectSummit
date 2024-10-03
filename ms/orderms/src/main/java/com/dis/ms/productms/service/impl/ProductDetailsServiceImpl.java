@@ -36,6 +36,7 @@ public class ProductDetailsServiceImpl implements ProductDetailsService {
 
         return products.stream().map(product -> {
             List<ImageUrlsDTO> images = imageUrlsService.getAllImagesById(product.getPrdId());
+            log.info("Fetch Images for Prd Id: {}, No of Images: {}", product.getPrdId(), images.size());
 
             ProductDetailsDTO productDetailsDTO = productDetailsMapper.toProductDetailsDTO(product);
             productDetailsDTO.setImageUrlsDTOList(images);

@@ -1,0 +1,5 @@
+{
+    "services":{
+        "productService": "http://localhost:5433"
+    }
+}
